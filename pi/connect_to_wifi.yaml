@@ -1,0 +1,18 @@
+---
+- hosts: piwithdefaults
+  gather_facts: yes
+  vars:
+    wifi:
+      ssid: "hotspot"
+      password: 12345678
+  tasks:
+    - name: put wifi config in place
+      template: src=templates/wpa_supplicant.conf.j2 dest=/etc/wpa_supplicant/wpa_supplicant.conf
+      notify: reboot
+      
+  handlers:
+    - name: reboot
+      command: shutdown -r now "Ansible updates triggered"
+      async: 0
+      poll: 0
+      ignore_errors: true
