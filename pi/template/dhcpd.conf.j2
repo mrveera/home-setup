@@ -1,0 +1,15 @@
+hostname
+clientid
+persistent
+option rapid_commit
+option domain_name_servers, domain_name, domain_search, host_name
+option classless_static_routes
+option interface_mtu
+require dhcp_server_identifier
+slaac private
+interface wlan0
+    static ip_address={{ dhcpd.wlan_static_ip }}/24
+interface eth0
+static ip_address={{ dhcpd.lan_static_ip }}/24
+static routers={{ dhcpd.lan_gateway }}
+static domain_name_servers={{ dhcpd.primary_dns }} {{ dhcpd.secondary_dns }} 

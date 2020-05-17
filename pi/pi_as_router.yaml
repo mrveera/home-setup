@@ -1,0 +1,68 @@
+---
+- name: Configure WIFI Hotspot for RaspberryPi 3
+  hosts: raspberrypi
+  become: true
+
+  vars:
+    interface: wlan0
+    netmask: 255.255.255.0
+    ip_dhcp_low: 192.168.4.2
+    ip_dhcp_high: 192.168.4.30
+    ssid: rasp_ap
+    wpa_passphrase: <pass>
+    dhcpd:
+      wlan_static_ip: 192.168.4.1
+      lan_static_ip: 10.100.6.158
+      lan_gateway: 10.100.6.1
+      primary_dns: 8.8.8.8
+      secondary_dns: 8.8.4.4
+
+  tasks:
+    - name: dnsmasq install
+      apt: name=dnsmasq state=present force=yes
+
+    - name: dnsmasq.conf
+      template:
+        src: template/dnsmasq.conf.j2
+        dest: /etc/dnsmasq.conf
+        backup: true
+
+    - name: hostapd.conf
+      template:
+        src: template/hostapd.conf.j2
+        dest: /etc/hostapd/hostapd.conf
+        backup: true
+
+    - name: hostapd
+      template:
+        src: template/hostapd.j2
+        dest: /etc/default/hostapd
+        backup: true
+
+    - name: rc.local
+      template:
+        src: template/rc.local.j2
+        dest: /etc/rc.local
+        backup: true
+
+    - name: static ip for my isp
+      template:
+        src: template/dhcpd.conf.j2
+        dest: /etc/dhcpcd.conf
+        backup: true
+
+    - name: networking service
+      service: name=networking enabled=yes state=restarted
+
+    - name: dnsmasq service
+      service: name=dnsmasq enabled=yes state=started
+
+    - name: hostapd service
+      service: name=hostapd enabled=yes state=started
+
+    - name: restart machine
+      shell: sleep 2 && reboot
+      async: 1
+      poll: 0
+      ignore_errors: true
+      become: true
