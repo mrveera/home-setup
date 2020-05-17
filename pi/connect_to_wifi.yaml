@@ -6,13 +6,23 @@
       ssid: "hotspot"
       password: 12345678
   tasks:
-    - name: put wifi config in place
-      template: src=templates/wpa_supplicant.conf.j2 dest=/etc/wpa_supplicant/wpa_supplicant.conf
+    - name: check if rules file exists
+      stat: 
+        path: /etc/wpa_supplicant/wpa_supplicant.conf
+      register: wpa_config
+    - name: change file permissions to replace if exists
+      command: "chmod -R 0777 /etc/wpa_supplicant/wpa_supplicant.conf"
+      when: wpa_config.stat.exists == True
+      become: true
+    - name: put wi  fi config in place
+      template: src=templates/wpa_supplicant.conf.j2 dest=/etc/wpa_supplicant/wpa_supplicant.conf mode=0600
       notify: reboot
+      become: true
       
   handlers:
     - name: reboot
-      command: shutdown -r now "Ansible updates triggered"
+      command: reboot
       async: 0
       poll: 0
       ignore_errors: true
+      become: true
