@@ -1,12 +1,13 @@
-module "ssh" {
-    source = "./ssh"
+
+module "pijump" {
+    source = "./pijump"
     providers = {
     digitalocean = digitalocean
   }
 }
 
-module "pijump" {
-    source = "./pijump"
+module "labrat" {
+    source = "./lab-rat"
     providers = {
     digitalocean = digitalocean
   }

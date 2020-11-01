@@ -1,3 +1,9 @@
+
+resource "digitalocean_ssh_key" "mrveera" {
+  name       = "Mr.Veera TF key"
+  public_key = file("~/.ssh/mrveera.pub")
+}
+
 resource "digitalocean_droplet" "pijump" {
   image  = "ubuntu-18-04-x64"
   name   = "pijump"
