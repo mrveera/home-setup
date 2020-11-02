@@ -1,5 +1,5 @@
 resource "digitalocean_ssh_key" "mrveera" {
-  name       = "Mr.Veera TF key"
+  name       = "mrveera"
   public_key = file("~/.ssh/mrveera.pub")
 }
 

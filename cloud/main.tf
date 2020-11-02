@@ -10,4 +10,13 @@ module "pijump" {
     providers = {
     digitalocean = digitalocean
   }
+  pvt_key = var.pvt_key
+}
+
+
+module "labrat" {
+    source = "./lab-rat"
+    providers = {
+    digitalocean = digitalocean
+  }
 }

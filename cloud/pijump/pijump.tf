@@ -1,10 +1,18 @@
+
+data "digitalocean_ssh_key" "mrveera" {
+  name = "mrveera"
+}
+
+variable "pvt_key" {}
+
+
 resource "digitalocean_droplet" "pijump" {
   image  = "ubuntu-18-04-x64"
   name   = "pijump"
   region = "blr1"
   size   = "s-1vcpu-1gb"
   private_networking = true
-  ssh_keys = [digitalocean_ssh_key.mrveera.fingerprint]
+  ssh_keys = [data.digitalocean_ssh_key.mrveera.fingerprint]
   connection {
     host = self.ipv4_address
     user = "root"
