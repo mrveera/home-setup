@@ -1,0 +1,47 @@
+auto_https off
+}
+
+beam.veera.lan:80 {
+
+	log {
+	output file /var/log/caddy.log
+}
+
+	reverse_proxy 192.168.10.132:443 {
+
+	transport http {
+	tls_insecure_skip_verify
+}
+}
+}
+isp.veera.lan:80 {
+	log {
+	output file /var/log/caddy.log
+}
+	reverse_proxy 10.254.254.10:443 {
+
+	transport http {
+	tls_insecure_skip_verify
+}
+}
+}
+
+
+caddy.veera.lan:80 {
+	log {
+	output file /var/log/caddy.log
+}
+	reverse_proxy localhost:2019 {
+	header_up Host localhost:2019
+
+}
+}
+
+monitor.veera.lan:80 {
+	log {
+	output file /var/log/caddy.log
+}
+	reverse_proxy localhost:19999 {
+
+}
+}
