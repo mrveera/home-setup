@@ -1,0 +1,266 @@
+# Slack alerts. Token/channel come from monitor/.env on the pi (not in git). JSON is valid YAML.
+{
+  "apiVersion": 1,
+  "contactPoints": [
+    {
+      "orgId": 1,
+      "name": "slack",
+      "receivers": [
+        {
+          "uid": "slack",
+          "type": "slack",
+          "settings": {
+            "token": "$SLACK_BOT_TOKEN",
+            "recipient": "$SLACK_CHANNEL"
+          }
+        }
+      ]
+    }
+  ],
+  "policies": [
+    {
+      "orgId": 1,
+      "receiver": "slack",
+      "group_by": [
+        "alertname"
+      ],
+      "group_wait": "30s",
+      "repeat_interval": "4h"
+    }
+  ],
+  "groups": [
+    {
+      "orgId": 1,
+      "name": "network",
+      "folder": "Network",
+      "interval": "1m",
+      "rules": [
+        {
+          "uid": "internet-down",
+          "title": "Internet down",
+          "condition": "B",
+          "for": "2m",
+          "noDataState": "OK",
+          "execErrState": "Error",
+          "annotations": {
+            "summary": "No reply from 1.1.1.1 or 8.8.8.8 for 2 min. (Arrives once the link is back if Slack was unreachable.)"
+          },
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 600,
+                "to": 0
+              },
+              "datasourceUid": "prom",
+              "model": {
+                "refId": "A",
+                "expr": "max(probe_success{job=\"ping\",role=\"internet\"})",
+                "instant": true
+              }
+            },
+            {
+              "refId": "B",
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "B",
+                "type": "threshold",
+                "expression": "A",
+                "conditions": [
+                  {
+                    "evaluator": {
+                      "type": "lt",
+                      "params": [
+                        1
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "uid": "internet-loss-1h",
+          "title": "Internet packet loss >2% over 1h",
+          "condition": "B",
+          "for": "5m",
+          "noDataState": "OK",
+          "execErrState": "Error",
+          "annotations": {
+            "summary": "Internet loss {{ humanizePercentage $values.A.Value }} over the last hour."
+          },
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 600,
+                "to": 0
+              },
+              "datasourceUid": "prom",
+              "model": {
+                "refId": "A",
+                "expr": "1 - avg(avg_over_time(probe_success{job=\"ping\",role=\"internet\"}[1h]))",
+                "instant": true
+              }
+            },
+            {
+              "refId": "B",
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "B",
+                "type": "threshold",
+                "expression": "A",
+                "conditions": [
+                  {
+                    "evaluator": {
+                      "type": "gt",
+                      "params": [
+                        0.02
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "uid": "router-loss",
+          "title": "Router dropping packets (local issue)",
+          "condition": "B",
+          "for": "5m",
+          "noDataState": "OK",
+          "execErrState": "Error",
+          "annotations": {
+            "summary": "Router loss {{ humanizePercentage $values.A.Value }} over 10 min: router / LAN / cable, not the ISP."
+          },
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 600,
+                "to": 0
+              },
+              "datasourceUid": "prom",
+              "model": {
+                "refId": "A",
+                "expr": "1 - avg(avg_over_time(probe_success{job=\"ping\",role=\"router\"}[10m]))",
+                "instant": true
+              }
+            },
+            {
+              "refId": "B",
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "B",
+                "type": "threshold",
+                "expression": "A",
+                "conditions": [
+                  {
+                    "evaluator": {
+                      "type": "gt",
+                      "params": [
+                        0.05
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "uid": "pi-undervoltage",
+          "title": "Pi undervoltage",
+          "condition": "B",
+          "for": "0s",
+          "noDataState": "OK",
+          "execErrState": "Error",
+          "annotations": {
+            "summary": "Pi power supply dipped below 4.63 V. Use a better cable / 27 W supply."
+          },
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 600,
+                "to": 0
+              },
+              "datasourceUid": "prom",
+              "model": {
+                "refId": "A",
+                "expr": "max(max_over_time({__name__=~\"node_hwmon_in_lcrit_alarm.*\"}[5m]))",
+                "instant": true
+              }
+            },
+            {
+              "refId": "B",
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "B",
+                "type": "threshold",
+                "expression": "A",
+                "conditions": [
+                  {
+                    "evaluator": {
+                      "type": "gt",
+                      "params": [
+                        0
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "uid": "pi-hot",
+          "title": "Pi temperature >80°C",
+          "condition": "B",
+          "for": "5m",
+          "noDataState": "OK",
+          "execErrState": "Error",
+          "annotations": {
+            "summary": "Pi at {{ $values.A.Value }}°C, it will throttle. Check the fan."
+          },
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 600,
+                "to": 0
+              },
+              "datasourceUid": "prom",
+              "model": {
+                "refId": "A",
+                "expr": "max(node_thermal_zone_temp)",
+                "instant": true
+              }
+            },
+            {
+              "refId": "B",
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "B",
+                "type": "threshold",
+                "expression": "A",
+                "conditions": [
+                  {
+                    "evaluator": {
+                      "type": "gt",
+                      "params": [
+                        80
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
