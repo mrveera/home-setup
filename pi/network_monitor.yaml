@@ -36,7 +36,16 @@
         group: pi
       register: stack
 
+    - name: monitor secrets (git-crypt, secure/)
+      copy:
+        src: ../secure/pi/monitor.env
+        dest: /home/pi/monitor/.env
+        owner: pi
+        group: pi
+        mode: "0600"
+      register: secrets
+
     - name: monitor stack up
-      command: docker compose up -d --remove-orphans {{ '--force-recreate' if stack.changed else '' }}
+      command: docker compose up -d --remove-orphans {{ '--force-recreate' if stack.changed or secrets.changed else '' }}
       args:
         chdir: /home/pi/monitor
