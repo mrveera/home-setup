@@ -1,0 +1,56 @@
+global:
+  scrape_interval: 30s
+
+scrape_configs:
+  # router + ISP hop are rediscovered by netinfo.sh on every network
+  - job_name: ping
+    scrape_interval: 5s
+    scrape_timeout: 4s
+    metrics_path: /probe
+    params: { module: [icmp] }
+    file_sd_configs: [{ files: [/targets/ping.json], refresh_interval: 30s }]
+    static_configs:
+      - targets: [1.1.1.1, 8.8.8.8]
+        labels: { role: internet }
+    # blackbox: probe target comes from __address__, the exporter itself is local
+    relabel_configs: &blackbox
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9115
+
+  - job_name: dns
+    metrics_path: /probe
+    params: { module: [dns] }
+    file_sd_configs: [{ files: [/targets/ping.json], refresh_interval: 30s }]
+    static_configs:
+      - targets: [1.1.1.1, 8.8.8.8]
+        labels: { role: public-dns }
+    relabel_configs:
+      - source_labels: [role]
+        regex: router|public-dns
+        action: keep
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9115
+
+  - job_name: http
+    metrics_path: /probe
+    params: { module: [http] }
+    static_configs:
+      - targets: [https://www.google.com/generate_204]
+    relabel_configs: *blackbox
+
+  # each scrape runs a full speedtest (~100 MB); 2h keeps it ~1.2 GB/day on capped plans
+  - job_name: speedtest
+    scrape_interval: 2h
+    scrape_timeout: 2m
+    static_configs: [{ targets: ["127.0.0.1:9798"] }]
+
+  - job_name: node
+    static_configs: [{ targets: ["127.0.0.1:9100"] }]

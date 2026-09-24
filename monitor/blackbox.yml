@@ -1,0 +1,22 @@
+modules:
+  icmp:
+    prober: icmp
+    timeout: 3s
+    icmp:
+      preferred_ip_protocol: ip4
+      ip_protocol_fallback: false
+  dns:
+    prober: dns
+    timeout: 3s
+    dns:
+      query_name: google.com
+      query_type: A
+      preferred_ip_protocol: ip4
+      ip_protocol_fallback: false
+  http:
+    prober: http
+    timeout: 5s
+    http:
+      valid_status_codes: [204]
+      preferred_ip_protocol: ip4
+      ip_protocol_fallback: false
