@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./data:/data:ro
-      - ./rclone.conf:/config/rclone/rclone.conf
+      - ./rclone:/config/rclone # a dir, not the file: rclone rewrites it when the Dropbox token refreshes
     # ponytail: same as the old setup (latest copy only, sqlite copied live). Versioned or
     # snapshot backups (restic, or sqlite .backup first) when that matters.
     entrypoint: ["sh", "-c", "while :; do rclone sync /data enc:/; sleep 3600; done"]

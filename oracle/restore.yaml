@@ -1,0 +1,41 @@
+---
+# Restore Vaultwarden data from the Dropbox backup (rclone crypt remote enc:/bw-data).
+# rclone COPY only reads the backup; it never writes or deletes in Dropbox.
+# The current data dir is kept as data.before-restore-<time>.
+# ansible-playbook -i oracle/hosts oracle/restore.yaml -l test -e confirm=yes
+- name: Restore vault from backup
+  hosts: vault
+  become: true
+
+  tasks:
+    - name: refuse without confirm=yes
+      assert:
+        that: confirm | default('') == 'yes'
+        fail_msg: "Replaces /opt/vault/data on {{ inventory_hostname }}. Re-run with -e confirm=yes"
+
+    - name: rclone config (git-crypt)
+      copy:
+        src: ../secure/oracle/rclone.conf
+        dest: /opt/vault/rclone/
+        mode: "0600"
+        force: false # keep the copy rclone refreshed on the host
+
+    - name: stop vaultwarden
+      command: docker compose stop vaultwarden
+      args:
+        chdir: /opt/vault
+
+    - name: keep current data aside
+      shell: mv data data.before-restore-$(date +%Y%m%d-%H%M%S) && mkdir data
+      args:
+        chdir: /opt/vault
+
+    - name: copy backup -> data
+      command: >
+        docker run --rm -v /opt/vault/rclone:/config/rclone -v /opt/vault/data:/data
+        rclone/rclone:1.71 copy enc:/bw-data /data
+
+    - name: start vaultwarden
+      command: docker compose up -d vaultwarden
+      args:
+        chdir: /opt/vault
