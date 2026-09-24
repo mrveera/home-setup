@@ -1,0 +1,21 @@
+# TLS_MODE=dns      -> Let's Encrypt via Cloudflare DNS challenge (needs CLOUDFLARE_API_TOKEN, no open ports)
+# TLS_MODE=internal -> Caddy's own CA, for throwaway tests
+(tls_dns) {
+	tls {
+		dns cloudflare {$CLOUDFLARE_API_TOKEN}
+	}
+}
+(tls_internal) {
+	tls internal
+}
+
+{$VAULT_DOMAIN} {
+	import tls_{$TLS_MODE}
+	encode gzip
+	header {
+		X-Frame-Options "DENY"
+		X-Robots-Tag "none"
+		-Server
+	}
+	reverse_proxy vaultwarden:80
+}
