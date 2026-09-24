@@ -21,6 +21,35 @@ scrape_configs:
       - target_label: __address__
         replacement: 127.0.0.1:9115
 
+  # Jio is mostly IPv6; v6 can break or route differently while v4 looks fine
+  - job_name: ping6
+    scrape_interval: 5s
+    scrape_timeout: 4s
+    metrics_path: /probe
+    params: { module: [icmp6] }
+    static_configs:
+      - targets: ["2606:4700:4700::1111", "2001:4860:4860::8888"]
+        labels: { role: internet }
+    relabel_configs: *blackbox
+
+  - job_name: region
+    metrics_path: /probe
+    params: { module: [tcp] }
+    static_configs:
+      - { targets: ["dynamodb.ap-south-1.amazonaws.com:443"], labels: { region: Mumbai } }
+      - { targets: ["dynamodb.ap-south-2.amazonaws.com:443"], labels: { region: Hyderabad } }
+      - { targets: ["dynamodb.ap-southeast-1.amazonaws.com:443"], labels: { region: Singapore } }
+      - { targets: ["dynamodb.eu-central-1.amazonaws.com:443"], labels: { region: Frankfurt } }
+      - { targets: ["dynamodb.us-east-1.amazonaws.com:443"], labels: { region: Virginia } }
+    relabel_configs: *blackbox
+
+  - job_name: services
+    metrics_path: /probe
+    params: { module: [https] }
+    static_configs:
+      - targets: [https://www.youtube.com, https://github.com, https://slack.com, https://www.amazon.in, https://www.whatsapp.com]
+    relabel_configs: *blackbox
+
   - job_name: dns
     metrics_path: /probe
     params: { module: [dns] }

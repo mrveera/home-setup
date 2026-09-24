@@ -20,3 +20,23 @@ modules:
       valid_status_codes: [204]
       preferred_ip_protocol: ip4
       ip_protocol_fallback: false
+  icmp6:
+    prober: icmp
+    timeout: 3s
+    icmp:
+      preferred_ip_protocol: ip6
+      ip_protocol_fallback: false
+  # connect time to a regional endpoint ~= RTT to that region; catches ISP routing detours
+  # that anycast 1.1.1.1/8.8.8.8 hide (they always answer from nearby)
+  tcp:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: ip4
+  # services you actually use; many block ICMP, so HTTPS instead
+  https:
+    prober: http
+    timeout: 10s
+    http:
+      preferred_ip_protocol: ip4
+      ip_protocol_fallback: false
