@@ -1,0 +1,51 @@
+---
+# Grafana network monitor (monitor/) + iperf3 server.
+# ansible-playbook -i pi/hosts pi/network_monitor.yaml
+# Then open http://raspberrypi.local on whatever network the Pi is plugged into.
+- name: Network monitor for RaspberryPi 5
+  hosts: monitor
+  become: true
+
+  tasks:
+    - name: docker
+      shell: curl -fsSL https://get.docker.com | sh
+      args:
+        creates: /usr/bin/docker
+
+    - name: pi can use docker
+      user: name=pi groups=docker append=yes
+
+    - name: let grafana (non-root) listen on :80
+      copy:
+        dest: /etc/sysctl.d/80-unprivileged-port.conf
+        content: "net.ipv4.ip_unprivileged_port_start=80\n"
+      register: sysctl
+
+    - name: apply sysctl
+      command: sysctl -p /etc/sysctl.d/80-unprivileged-port.conf
+      when: sysctl.changed
+
+    - name: iperf3 server (iperf3 -c raspberrypi.local from any device)
+      service: name=iperf3 enabled=yes state=started
+
+    - name: monitor stack files
+      copy:
+        src: ../monitor/
+        dest: /home/pi/monitor/
+        owner: pi
+        group: pi
+      register: stack
+
+    - name: monitor secrets (git-crypt, secure/)
+      copy:
+        src: ../secure/pi/monitor.env
+        dest: /home/pi/monitor/.env
+        owner: pi
+        group: pi
+        mode: "0600"
+      register: secrets
+
+    - name: monitor stack up
+      command: docker compose up -d --remove-orphans {{ '--force-recreate' if stack.changed or secrets.changed else '' }}
+      args:
+        chdir: /home/pi/monitor

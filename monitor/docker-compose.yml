@@ -1,0 +1,81 @@
+# Network monitor for whatever network the Pi is plugged into.
+# Open http://raspberrypi.local (Grafana on :80, anonymous view).
+# Everything but speedtest runs on the host network so pings/routes are the Pi's own;
+# only Grafana listens on the LAN, the rest bind to 127.0.0.1.
+services:
+  netinfo:
+    image: curlimages/curl
+    user: root
+    network_mode: host
+    restart: unless-stopped
+    entrypoint: ["sh", "/netinfo.sh"]
+    volumes:
+      - ./netinfo.sh:/netinfo.sh:ro
+      - targets:/targets
+      - textfile:/textfile
+
+  blackbox:
+    image: prom/blackbox-exporter
+    user: root
+    cap_add: [NET_RAW]
+    network_mode: host
+    restart: unless-stopped
+    command: ["--config.file=/etc/blackbox.yml", "--web.listen-address=127.0.0.1:9115"]
+    volumes:
+      - ./blackbox.yml:/etc/blackbox.yml:ro
+
+  speedtest:
+    image: miguelndecarvalho/speedtest-exporter
+    restart: unless-stopped
+    ports: ["127.0.0.1:9798:9798"]
+
+  node:
+    image: prom/node-exporter
+    network_mode: host
+    pid: host
+    restart: unless-stopped
+    command:
+      - --path.rootfs=/host
+      - --web.listen-address=127.0.0.1:9100
+      - --collector.textfile.directory=/textfile
+    volumes:
+      - /:/host:ro,rslave
+      - textfile:/textfile:ro
+
+  prometheus:
+    image: prom/prometheus
+    network_mode: host
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.listen-address=127.0.0.1:9090
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - targets:/targets:ro
+      - prometheus:/prometheus
+
+  grafana:
+    image: grafana/grafana-oss
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      GF_SERVER_HTTP_PORT: "80" # needs net.ipv4.ip_unprivileged_port_start<=80 on the host (playbook sets it)
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/network.json
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      # for provisioning/alerting; lives in monitor/.env on the pi, not in git
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_CHANNEL: ${SLACK_CHANNEL:-}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana:/var/lib/grafana
+
+volumes:
+  targets:
+  textfile:
+  prometheus:
+  grafana:

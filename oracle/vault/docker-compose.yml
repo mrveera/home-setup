@@ -1,0 +1,40 @@
+# Vaultwarden behind Caddy, reachable only on the Tailscale IP.
+# Values come from .env (deployed from secure/oracle/<host>.env, git-crypt).
+services:
+  caddy:
+    image: ghcr.io/caddybuilds/caddy-cloudflare:2.11.4-alpine
+    restart: unless-stopped
+    env_file: .env
+    ports: ["${BIND_ADDR}:${HTTPS_PORT}:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  vaultwarden:
+    image: vaultwarden/server:1.37.3-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: https://${VAULT_DOMAIN}${VAULT_PORT_SUFFIX:-}
+      ADMIN_TOKEN: ${ADMIN_TOKEN}
+      SIGNUPS_ALLOWED: ${SIGNUPS_ALLOWED:-false}
+      ROCKET_WORKERS: 2
+    volumes:
+      - ./data:/data
+
+  # Pushes ./data to Dropbox (encrypted). `rclone sync` MIRRORS DELETIONS: on a fresh or
+  # test box it would wipe the real backup. Only runs with `--profile backup`, on the live host.
+  backup:
+    profiles: [backup]
+    image: rclone/rclone:1.71
+    restart: unless-stopped
+    volumes:
+      - ./data:/data:ro
+      - ./rclone:/config/rclone # a dir, not the file: rclone rewrites it when the Dropbox token refreshes
+    # ponytail: same as the old setup (latest copy only, sqlite copied live). Versioned or
+    # snapshot backups (restic, or sqlite .backup first) when that matters.
+    entrypoint: ["sh", "-c", "while :; do rclone sync /data enc:/; sleep 3600; done"]
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,34 @@
+---
+# Vaultwarden + Caddy on the Tailscale IP. Secrets: secure/oracle/<inventory name>.env (git-crypt).
+# ansible-playbook -i oracle/hosts oracle/vault.yaml
+- name: Vaultwarden
+  hosts: vault
+  become: true
+
+  tasks:
+    - name: docker
+      shell: curl -fsSL https://get.docker.com | sh
+      args:
+        creates: /usr/bin/docker
+
+    - name: stack files
+      copy:
+        src: vault/
+        dest: /opt/vault/
+      register: stack
+
+    - name: secrets
+      copy:
+        src: ../secure/oracle/{{ inventory_hostname }}.env
+        dest: /opt/vault/.env
+        mode: "0600"
+      register: secrets
+
+    - name: data dir
+      file: path=/opt/vault/data state=directory
+
+    # no --profile backup: the Dropbox push only ever runs on the live host, by hand
+    - name: stack up
+      command: docker compose up -d --remove-orphans {{ '--force-recreate' if stack.changed or secrets.changed else '' }}
+      args:
+        chdir: /opt/vault
